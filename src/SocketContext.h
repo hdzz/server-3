@@ -48,6 +48,11 @@ public:
 		node = nd;
 	}
 
+	void UpdataTimeStamp(uint64_t _timeStamp)
+	{
+		timeStamp = _timeStamp;
+	}
+
 	void UpdataTimeStamp()
 	{
 		timeStamp = GetSysTickCount64();
@@ -85,7 +90,7 @@ public:
 	DataReleaseFunc    extDataRelease;
 	RemoteServerInfo  *remoteServerInfo;
 	ServerContext     *serverCtx;
-	int                threadHoldCount;
+	int                holdCount;
 	
 private:
 	void              *node;

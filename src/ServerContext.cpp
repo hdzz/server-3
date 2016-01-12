@@ -326,7 +326,8 @@ bool ServerContext::_ListenRemoteChildren()
 bool ServerContext::_ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 {
 	// 生成用于连接服务器的Socket的信息
-	SocketContext* connectSocketCtx = remoteServerInfo->socketCtx = CreateConnectSocketCtx();
+	uint64_t timeStamp = GetSysTickCount64();
+	SocketContext* connectSocketCtx = remoteServerInfo->socketCtx = CreateConnectSocketCtx(timeStamp);
 	connectSocketCtx->sock = _Socket();
 	connectSocketCtx->remoteServerInfo = remoteServerInfo;
 
@@ -387,7 +388,7 @@ bool ServerContext::_ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 		return false;
 	}
 
-	connectSocketCtx->UpdataTimeStamp();
+	connectSocketCtx->UpdataTimeStamp(timeStamp);
 
 	IoContext* newIoCtx;	
 	newIoCtx = connectSocketCtx->GetNewIoContext(1);
@@ -404,7 +405,7 @@ bool ServerContext::_ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 	
 #ifdef _EPOLL
 
-	connectSocketCtx->UpdataTimeStamp();
+	connectSocketCtx->UpdataTimeStamp(timeStamp);
 
 	IoContext* newIoCtx;
 	newIoCtx = connectSocketCtx->GetNewIoContext(1);
@@ -466,12 +467,10 @@ IoContext* ServerContext::GetNewIoContext(int packContentSize)
 }
 
 // 获取一个新的SocketContext
-SocketContext* ServerContext::GetNewSocketContext()
+SocketContext* ServerContext::GetNewSocketContext(uint64_t timeStamp)
 {
 	SocketContext* p = 0;
-
-	if (useMultithreading)
-		shardMemoryLock.Lock();
+	int tm = 0;
 
 	if (!socketctxFreeList.isempty())
 	{
@@ -479,7 +478,9 @@ SocketContext* ServerContext::GetNewSocketContext()
 		while (socketctxFreeList.next())
 		{
 			p = *(socketctxFreeList.cur());
-			if (p->threadHoldCount == 1){
+			tm = timeStamp - p->timeStamp;
+
+			if (p->holdCount == 0 && tm > 1000){
 				socketctxFreeList.delete_node(p->node);
 				p->node = 0;
 				p->isRelease = false;
@@ -492,16 +493,13 @@ SocketContext* ServerContext::GetNewSocketContext()
 		p = new SocketContext(this);
 	}
 
-	if (useMultithreading)
-		shardMemoryLock.UnLock();
-
 	return p;
 }
 
 
 bool ServerContext::PostSocketAbnormal(SocketContext* socketCtx)
 {
-	RELEASE_SOCKET(socketCtx->sock);
+	_PostTaskData(_OfflineSocketTask, 0, socketCtx);
 	return true;
 }
 
@@ -594,6 +592,7 @@ void ServerContext::_AddToFreeList(SocketContext *socketCtx)
 		if (useMultithreading)
 			shardMemoryLock.Lock();
 
+		socketCtx->UpdataTimeStamp();
 		socketctxFreeList.push_back(socketCtx);
 		socketCtx->SetNode(socketctxFreeList.get_last_node());
 
@@ -794,16 +793,6 @@ void ServerContext::_UnPack(SocketContext* socketCtx)
 	}
 }
 
-
-bool ServerContext::_PostTask(task_func_cb taskfunc, SocketContext* socketCtx, IoContext* ioCtx, int delay)
-{
-	TaskData* data = (TaskData*)malloc(sizeof(TaskData));
-	data->ioCtx = ioCtx;
-	data->socketCtx = socketCtx;
-	data->serverCtx = this;
-
-	return _PostTaskData(taskfunc, _ReleaseTask, data, delay);
-}
 
 bool ServerContext::_PostTask(task_func_cb taskfunc, RemoteServerInfo* remoteServerInfo)
 {

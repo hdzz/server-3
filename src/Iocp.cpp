@@ -54,13 +54,13 @@ void* ServerContext::_WorkerThread(void* pParam)
 			//LOG4CPLUS_ERROR(log.GetInst(), "这个可能是由于"<<socketCtx<<"非正常关闭造成的.错误代码:" << WSAGetLastError());
 
 			if(ioCtx->postIoType == POST_IO_ACCEPT)
-				serverCtx->_PostTask(_ReAccpetTask, socketCtx, ioCtx);
+				serverCtx->_PostTask(_ReAccpetTask, ioCtx);
 			else
 			{
 				if (serverCtx->useMultithreading)
 					serverCtx->_OfflineSocket(socketCtx);
 				else
-					serverCtx->_PostTask(_OfflineSocketTask, socketCtx, ioCtx);
+					serverCtx->_PostTask(_OfflineSocketTask, socketCtx);
 			}
 			continue;
 		}
@@ -77,7 +77,7 @@ void* ServerContext::_WorkerThread(void* pParam)
 				if (serverCtx->useMultithreading)
 					serverCtx->_OfflineSocket(socketCtx);
 				else
-					serverCtx->_PostTask(_OfflineSocketTask,socketCtx, ioCtx);
+					serverCtx->_PostTask(_OfflineSocketTask, socketCtx);
 			}
 			else
 			{
@@ -92,13 +92,13 @@ void* ServerContext::_WorkerThread(void* pParam)
 						break;
 
 					default:
-						serverCtx->_PostTask(taskFunc[ioCtx->postIoType], socketCtx, ioCtx);
+						serverCtx->_PostTask(taskFunc[ioCtx->postIoType], ioCtx);
 						break;
 					}
 				}
 				else
 				{
-					serverCtx->_PostTask(taskFunc[ioCtx->postIoType], socketCtx, ioCtx);
+					serverCtx->_PostTask(taskFunc[ioCtx->postIoType], ioCtx);
 				}
 			}					
 		}
@@ -153,6 +153,7 @@ bool ServerContext::_PostConnect(IoContext* ioCtx, SOCKADDR_IN& sockAddr)
 	PackBuf *p_wbuf = &ioCtx->packBuf;
 
 	ioCtx->postIoType = POST_IO_CONNECT;
+	ioCtx->socketCtx->AddToList(ioCtx);
 
 	int rc = lpfnConnectEx(
 		ioCtx->sock,
@@ -188,6 +189,7 @@ bool ServerContext::_PostAccept(IoContext* ioCtx)
 	
 	// 为以后新连入的客户端先准备好Socket
 	ioCtx->sock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
+	
 
 	if (INVALID_SOCKET == ioCtx->sock)
 	{
@@ -212,7 +214,6 @@ bool ServerContext::_PostAccept(IoContext* ioCtx)
 			return false;
 		}
 	}
-
 
 	return true;
 }

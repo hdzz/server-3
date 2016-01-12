@@ -11,7 +11,7 @@ SocketContext::SocketContext(ServerContext* _serverCtx)
 , extensionData(0)
 , extDataRelease(0)
 , serverCtx(_serverCtx)
-, threadHoldCount(1)
+, holdCount(0)
 , isRelease(false)
 
 #ifdef _EPOLL

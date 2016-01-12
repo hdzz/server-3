@@ -5,10 +5,9 @@
 // 与远程服务器连接上后，进行处理
 void* ServerContext::_DoConnectTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
 	socketCtx->socketType = CONNECTED_SERVER_SOCKET;
@@ -39,10 +38,9 @@ void* ServerContext::_DoConnectTask(void* data)
 
 void* ServerContext::_DoAcceptTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
 	SOCKADDR_IN* ClientAddr = NULL;
@@ -52,7 +50,6 @@ void* ServerContext::_DoAcceptTask(void* data)
 	std::string* value = 0;
 	int err = 0;
 	SocketContext* newSocketCtx;
-
 
 	//取得连入客户端的地址信息,通过 lpfnGetAcceptExSockAddrs
 	//不但可以取得客户端和本地端的地址信息，还能顺便取出客户端发来的第一组数据
@@ -75,13 +72,12 @@ void* ServerContext::_DoAcceptTask(void* data)
 
 
 	//LOG4CPLUS_INFO(log.GetInst(),"接受来自地址"<<inet_ntoa(ClientAddr->sin_addr)<<"的链接.");
-
-	newSocketCtx = serverCtx->CreateClientSocketCtx();
+	uint64_t timeStamp = GetSysTickCount64();
+	newSocketCtx = serverCtx->CreateClientSocketCtx(timeStamp);
 	newSocketCtx->sock = ioCtx->sock;
 	newSocketCtx->socketType = socketType;
-	newSocketCtx->UpdataTimeStamp();
+	newSocketCtx->UpdataTimeStamp(timeStamp);
 	memcpy(&(newSocketCtx->sockAddr), ClientAddr, sizeof(SOCKADDR_IN));
-
 
 	//LOG4CPLUS_INFO(log.GetInst(),"SocketCtx:"<<"["<<newSocketCtx<<"]"<< "时间戳:"<<newSocketCtx->timeStamp<<"ms");
 
@@ -124,12 +120,10 @@ end:
 // 在有接收的数据到达的时候，进行处理
 void* ServerContext::_DoRecvTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
-
 
 	if (socketCtx->sock == INVALID_SOCKET)
 	{
@@ -159,10 +153,9 @@ void* ServerContext::_DoRecvTask(void* data)
 //已经发送完数据后调用处理
 void* ServerContext::_DoSendTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
 	socketCtx->ChangeToFreeState(ioCtx);
@@ -172,10 +165,9 @@ void* ServerContext::_DoSendTask(void* data)
 
 void* ServerContext::_ReAccpetTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
 	RELEASE_SOCKET(ioCtx->sock);

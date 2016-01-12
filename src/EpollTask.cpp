@@ -5,10 +5,9 @@
 // 与远程服务器连接上后，进行处理
 void* ServerContext::_DoConnectTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
 
@@ -38,10 +37,9 @@ void* ServerContext::_DoConnectTask(void* data)
 
 void* ServerContext::_DoAcceptTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
     SocketContext* newSocketCtx;
@@ -91,10 +89,11 @@ void* ServerContext::_DoAcceptTask(void* data)
 		}
 		else
 		{
-			newSocketCtx = serverCtx->CreateClientSocketCtx();
+			uint64_t timeStamp = GetSysTickCount64();
+			newSocketCtx = serverCtx->CreateClientSocketCtx(timeStamp);
 			newSocketCtx->sock = insock;
 			newSocketCtx->socketType = socketType;
-			newSocketCtx->UpdataTimeStamp();
+			newSocketCtx->UpdataTimeStamp(timeStamp);
 			memcpy(&(newSocketCtx->sockAddr), &in_addr, sizeof(struct sockaddr));
 
 			// 把这个有效的客户端信息，加入到ClientCtxList中去
@@ -124,10 +123,9 @@ void* ServerContext::_DoAcceptTask(void* data)
 // 在有接收的数据到达的时候，进行处理
 void* ServerContext::_DoRecvTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 	////CmiLogger& log = serverCtx->log;
 	char* buf = ioCtx->buf;
 	int bufSize = ioCtx->packBuf.len;
@@ -193,10 +191,9 @@ void* ServerContext::_DoRecvTask(void* data)
 //处理发送数据
 void* ServerContext::_DoSendTask(void* data)
 {
-	TaskData* task = (TaskData*)data;
-	ServerContext* serverCtx = task->serverCtx;
-	SocketContext* socketCtx = task->socketCtx;
-	IoContext* ioCtx = task->ioCtx;
+	IoContext* ioCtx = (IoContext*)data;
+	SocketContext* socketCtx = ioCtx->socketCtx;
+	ServerContext* serverCtx = socketCtx->serverCtx;
 
 	//CmiLogger& log = serverCtx->log;
 	int count;

@@ -62,8 +62,13 @@ public:
 
 	//发送包(当代码逻辑在任务处理器中时，可以直接使用此函数来发包)
 	bool SendPack(IoContext* ioCtx)
-	{
-		return _PostSend(ioCtx);
+	{		
+		if (false == _PostSend(ioCtx))	
+		{	
+			SendSocketAbnormal(ioCtx->socketCtx);	
+			return false;	
+		}	
+		return true;	
 	}
 
 	//投递任务包到线性任务器中(当代码逻辑不在任务处理器中时，必须投递任务包到任务处理器中再处理)
@@ -100,13 +105,12 @@ public:
 	//关闭socket
 	bool CloseSocket(SocketContext* socketCtx)
 	{
-		return _PostTask(_CloseSocketTask, socketCtx);
+		return _PostTaskData(_CloseSocketTask, 0, socketCtx);
 	}
 
 	//发送socket异常
 	bool PostSocketAbnormal(SocketContext* socketCtx);
 	
-
 	bool SendSocketAbnormal(SocketContext* socketCtx)
 	{
 		return PostSocketAbnormal(socketCtx);
@@ -149,14 +153,14 @@ public:
 		return true;
 	}
 
-	virtual SocketContext* CreateClientSocketCtx()
+	virtual SocketContext* CreateClientSocketCtx(uint64_t timeStamp)
 	{
-		return GetNewSocketContext();
+		return GetNewSocketContext(timeStamp);
 	}
 
-	virtual SocketContext* CreateConnectSocketCtx()
+	virtual SocketContext* CreateConnectSocketCtx(uint64_t timeStamp)
 	{
-		return GetNewSocketContext();
+		return GetNewSocketContext(timeStamp);
 	}
 
 	virtual int GetPackHeadLength()
@@ -184,7 +188,7 @@ public:
 		return localIP;
 	}
 
-	SocketContext* GetNewSocketContext();
+	SocketContext* GetNewSocketContext(uint64_t timeStamp);
 	IoContext* GetNewIoContext(int packContentSize = MAX_BUFFER_LEN);
 
 
@@ -228,8 +232,18 @@ private:
 
 	bool _ConnectRemoteServer(RemoteServerInfo* remoteServerInfo);
 
-	bool _PostTask(task_func_cb taskfunc, SocketContext* socketCtx = 0, IoContext* ioCtx = 0, int delay = 0);
+	bool _PostTask(task_func_cb taskfunc, SocketContext* socketCtx, int delay = 0)
+	{
+		return _PostTaskData(taskfunc, 0, socketCtx, delay);
+	}
+
+	bool _PostTask(task_func_cb taskfunc, IoContext* ioCtx, int delay = 0)
+	{
+		return _PostTaskData(taskfunc, 0, ioCtx, delay);
+	}
+
 	bool _PostTask(task_func_cb taskfunc, RemoteServerInfo* remoteServerInfo);
+
 	bool _PostTaskData(task_func_cb taskfunc, task_func_cb tk_release_func, void* taskData, int delay = 0);
 
 	void _UnPack(SocketContext* socketCtx);
