@@ -1,0 +1,127 @@
+bool ServerContext::_PostTask(task_func_cb taskfunc, SocketContext* socketCtx, IoContext* ioCtx)
+{
+	int err;
+	TaskData* data = (TaskData*)malloc(sizeof(TaskData));
+	data->ioCtx = ioCtx;
+	data->socketCtx = socketCtx;
+	data->serverCtx = this;
+
+	return _PostTaskData(taskfunc, _ReleaseTask, data);
+}
+
+bool ServerContext::_PostTask(task_func_cb taskfunc, RemoteServerInfo* remoteServerInfo)
+{
+	int err;
+	TaskData* data = (TaskData*)malloc(sizeof(TaskData));
+	data->serverCtx = this;
+	data->dataPtr = remoteServerInfo;
+
+	return _PostTaskData(taskfunc, _ReleaseTask, data);
+}
+
+
+bool ServerContext::_PostTaskData(task_func_cb taskfunc, task_func_cb tk_release_func, void* taskData)
+{
+	int err;
+
+	taskProcesser->post_task(taskfunc, tk_release_func, taskData);
+
+	if (!useExtScheduler)
+	{
+		err = post_task(taskThread, task_create(taskfunc, _ReleaseTask, taskData));
+	}
+	else
+	{
+#ifdef EXTERNAL_SCHEDULER
+		err = extTask->post_task(task_create(taskfunc, _ReleaseTask, data));
+#else
+		err = post_task(taskThread, task_create(taskfunc, _ReleaseTask, taskData));
+#endif
+	}
+
+	if (0 != err){
+		//LOG4CPLUS_ERROR(log.GetInst(), "任务投递失败" );
+		return false;
+	}
+
+	return true;
+}
+
+
+
+	if (!useExtScheduler)
+	{
+		if (0 != task_thread_create(&taskThread))
+		{
+			//LOG4CPLUS_ERROR(log.GetInst(), "建立转发处理消息任务线程失败!");
+			return false;
+		}
+	}
+	else
+	{
+#ifdef EXTERNAL_SCHEDULER
+		extTask = new ExtTask(extScheduler);
+#else
+		if (0 != task_thread_create(&taskThread))
+		{
+			//LOG4CPLUS_ERROR(log.GetInst(), "建立转发处理消息任务线程失败!");
+			return false;
+		}
+#endif
+	}
+
+
+	if (!useExtScheduler)
+	{
+		task_thread_join(taskThread);
+	}
+	else
+	{
+#ifdef EXTERNAL_SCHEDULER
+		RELEASE(extTask);
+#else
+		task_thread_join(taskThread);
+#endif
+	}
+
+
+
+TimeTask*  ServerContext::CreateTimeTask(
+	TimeTaskFunc timeTaskFunc,
+	void* data,
+	int delay,
+	TimeTaskFunc timeTaskReleaseFunc)
+{
+
+	TimeTask* timeTask;
+
+	if (!useExtScheduler)
+	{
+		timeTask = new CmiTimeTask(
+			taskThread,
+			timeTaskFunc,
+			data,
+			delay,
+			timeTaskReleaseFunc);
+	}
+	else
+	{
+#ifdef EXTERNAL_SCHEDULER
+		timeTask = new CmiTimeTaskScheduler(
+			extScheduler,
+			timeTaskFunc,
+			data,
+			delay,
+			timeTaskReleaseFunc);
+#else
+		timeTask = new CmiTimeTask(
+			taskThread,
+			timeTaskFunc,
+			data,
+			delay,
+			timeTaskReleaseFunc);
+#endif
+	}
+
+	return timeTask;
+}
