@@ -34,6 +34,7 @@ ServerContext::ServerContext(TaskProcesser* _taskProcesser)
 , useDefTaskProcesser(false)
 , isCheckChildrenHeartBeat(false)
 , isCheckServerHeartBeat(false)
+, isSendServerHeartBeat(false)
 , isStop(true)
 , childLifeDelayTime(11000)             //10s
 
@@ -224,11 +225,13 @@ void ServerContext::_DeInitializeByClose()
 }
 
 template <class T>
-void ServerContext::_ClearVecList(CmiVector<T>& vecList)
+void ServerContext::_ClearVecList(CmiVector<T>& vecList, bool isDel)
 {
 	vecList.reset();
 	while (vecList.next()){
-		delete *(vecList.cur());
+		if (isDel){
+			delete *(vecList.cur());
+		}
 		vecList.del();
 	}
 }
@@ -326,7 +329,7 @@ bool ServerContext::_ListenRemoteChildren()
 bool ServerContext::_ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 {
 	// 生成用于连接服务器的Socket的信息
-	uint64_t timeStamp = GetSysTickCount64();
+	uint64_t timeStamp = GetTickCount64();
 	SocketContext* connectSocketCtx = remoteServerInfo->socketCtx = CreateConnectSocketCtx(timeStamp);
 	connectSocketCtx->sock = _Socket();
 	connectSocketCtx->remoteServerInfo = remoteServerInfo;
@@ -444,17 +447,27 @@ IoContext* ServerContext::GetNewIoContext(int packContentSize)
 
 	if (useMultithreading)
 		shardMemoryLock.Lock();
-
+	
 	int size = packContentSize + GetPackHeadLength();
 	int fixSize;
 	int i = _GetFixSizeIndex(size, fixSize);
 
-	if (!ioctxFreeList[i].isempty()){
+	if (!ioctxFreeList[i].isempty())
+	{
+		uint64_t tm = GetTickCount64();
+
 		p = *(ioctxFreeList[i].begin());
-		p->packBuf.buf = p->buf;
-		p->packBuf.len = p->maxBufSize;
-		ioctxFreeList[i].delete_node(p->node);
-		p->ResetBuffer();
+		tm -= p->timeStamp;
+
+		if (tm > 1000){
+			p->packBuf.buf = p->buf;
+			p->packBuf.len = p->maxBufSize;
+			ioctxFreeList[i].delete_node(p->node);
+			p->ResetBuffer();
+		}
+		else{
+			p = new IoContext(fixSize);
+		}
 	}
 	else{
 		p = new IoContext(fixSize);
@@ -470,7 +483,7 @@ IoContext* ServerContext::GetNewIoContext(int packContentSize)
 SocketContext* ServerContext::GetNewSocketContext(uint64_t timeStamp)
 {
 	SocketContext* p = 0;
-	int tm = 0;
+	uint64_t tm = 0;
 
 	if (!socketctxFreeList.isempty())
 	{
@@ -480,7 +493,13 @@ SocketContext* ServerContext::GetNewSocketContext(uint64_t timeStamp)
 			p = *(socketctxFreeList.cur());
 			tm = timeStamp - p->timeStamp;
 
-			if (p->holdCount == 0 && tm > 1000){
+			if (tm <= 1000)
+			{
+				p = new SocketContext(this);
+				return p;
+			}
+			else if (p->holdCount == 0)
+			{
 				socketctxFreeList.delete_node(p->node);
 				p->node = 0;
 				p->isRelease = false;
@@ -495,7 +514,6 @@ SocketContext* ServerContext::GetNewSocketContext(uint64_t timeStamp)
 
 	return p;
 }
-
 
 bool ServerContext::PostSocketAbnormal(SocketContext* socketCtx)
 {
@@ -612,6 +630,8 @@ void ServerContext::_AddToFreeList(IoContext *ioCtx)
 
 		int fixSize;
 		int i = _GetFixSizeIndex(ioCtx->maxBufSize, fixSize);
+
+		ioCtx->timeStamp = GetTickCount64();
 		ioctxFreeList[i].push_back(ioCtx);
 		ioCtx->SetNode(ioctxFreeList[i].get_last_node());
 
@@ -636,6 +656,11 @@ void ServerContext::_AddToRemoteServerInfoList(RemoteServerInfo* remoteServerInf
 	if (isCheckServerHeartBeat && remoteServerInfo->isCheckHeartBeat)
 	{	
 		PostTimerTask(_HeartBeatTask_CheckServer, 0, remoteServerInfo, remoteServerInfo->lifeDelayTime);
+		PostTimerTask(_SendHeartBeatTask, 0, remoteServerInfo, remoteServerInfo->sendHeartBeatPackTime);
+	}
+
+	if (isSendServerHeartBeat && remoteServerInfo->sendHeartBeatPackTime)
+	{
 		PostTimerTask(_SendHeartBeatTask, 0, remoteServerInfo, remoteServerInfo->sendHeartBeatPackTime);
 	}
 }
@@ -665,6 +690,14 @@ bool ServerContext::_RemoveSocketContext(SocketContext *socketCtx)
 		remoteServerInfo->socketCtx = 0;
 		remoteServerInfoList.delete_node(socketCtx->node);
 		_AddToFreeList(socketCtx);
+
+		if ((isCheckServerHeartBeat && remoteServerInfo->isCheckHeartBeat) ||
+			(isSendServerHeartBeat && remoteServerInfo->sendHeartBeatPackTime))
+		{
+			return true;
+		}
+
+		delete remoteServerInfo;
 		return true;
 
 	default:
@@ -713,7 +746,7 @@ int ServerContext::_GetFixSizeIndex(int orgSize, int& fixSize)
 void ServerContext::_HeartBeat_CheckChildren()
 {
 	SocketContext* socketCtx;
-	uint64_t time = GetSysTickCount64();
+	uint64_t time = GetTickCount64();
 	uint64_t tm;
 
 	//客户端列表
@@ -739,7 +772,7 @@ void ServerContext::_HeartBeat_CheckChildren()
 void ServerContext::_HeartBeat_CheckServer(RemoteServerInfo* remoteServerInfo)
 {
 	SocketContext* socketCtx;
-	uint64_t time = GetSysTickCount64();
+	uint64_t time = GetTickCount64();
 	uint64_t tm;
 
 	//远程服务器

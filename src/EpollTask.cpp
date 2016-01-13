@@ -89,7 +89,7 @@ void* ServerContext::_DoAcceptTask(void* data)
 		}
 		else
 		{
-			uint64_t timeStamp = GetSysTickCount64();
+			uint64_t timeStamp = GetTickCount64();
 			newSocketCtx = serverCtx->CreateClientSocketCtx(timeStamp);
 			newSocketCtx->sock = insock;
 			newSocketCtx->socketType = socketType;
@@ -131,6 +131,8 @@ void* ServerContext::_DoRecvTask(void* data)
 	int bufSize = ioCtx->packBuf.len;
 	int count;
 	int done = 0;
+
+
 
 	if (socketCtx->sock == INVALID_SOCKET)
 	{

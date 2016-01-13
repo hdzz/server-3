@@ -55,7 +55,7 @@ public:
 
 	void UpdataTimeStamp()
 	{
-		timeStamp = GetSysTickCount64();
+		timeStamp = GetTickCount64();
 	}
 
 	RemoteServerInfo* GetRemoteServerInfo()

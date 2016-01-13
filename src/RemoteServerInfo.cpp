@@ -13,7 +13,6 @@ RemoteServerInfo::RemoteServerInfo()
 
 RemoteServerInfo::~RemoteServerInfo()
 {
-	RELEASE(socketCtx);
 }
 
 void RemoteServerInfo::Copy(RemoteServerInfo& obj)

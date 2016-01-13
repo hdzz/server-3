@@ -60,13 +60,14 @@ else
 {
   struct timespec ts;
   int s;
+ 
+  if (clock_gettime(CLOCK_REALTIME, &ts) == -1)   
+  {  
+  }
 
-    if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
-    {
-    }
-
-   ts.tv_sec +=  delayMillisecond / 1000 ;
-
+  ts.tv_sec +=  delayMillisecond / 1000;
+  ts.tv_usec += (delayMillisecond % 1000) * 1000;
+   
   while ((s = sem_timedwait(&sem, &ts)) == -1 && errno == EINTR)
         continue;       /* Restart if interrupted by handler */
 

@@ -95,7 +95,7 @@ int post_task(task_thread_t tk_thread, task_node_t* tk, int delay)
 	{
 		tk->delay = delay;
 		if (delay > 0)
-			tk->startTime = GetSysTickCount64();
+			tk->startTime = GetTickCount64();
 
 		pthread_mutex_lock(&pump->lock);
 
@@ -161,7 +161,11 @@ static void* run(void* param)
 	task_node_t* tmp;
 	task_queue_t timer_que;
 	memset(&timer_que, 0, sizeof(task_queue_t));
-	int curTime = GetSysTickCount64();
+	uint64_t curTime = GetTickCount64();
+	uint32_t delay = 0xFFFFFFFF;
+	uint32_t curdelay;
+	struct timeval now;
+	struct timespec outtime;
 
 	for (;;)
 	{
@@ -173,6 +177,12 @@ static void* run(void* param)
 				tmp = cur->next;
 				task_queue_del(rque, cur);
 				task_queue_add(&timer_que, cur);
+				
+				curdelay = cur->delay - (curTime - cur->startTime);
+
+				if (curdelay < delay)
+					delay = curdelay;
+
 				cur = tmp;
 				continue;
 			}
@@ -206,8 +216,20 @@ static void* run(void* param)
 		{
 			pthread_mutex_lock(&pump->lock);
 
-			while (wque->len == 0 && timer_que.len == 0){
-				pthread_cond_wait(&pump->cond, &pump->lock);
+			int sec = delay / 1000;
+			int usec = (delay % 1000) *1000;
+			gettimeofday(&now, NULL);
+			outtime.tv_sec = now.tv_sec + sec;
+			outtime.tv_nsec = (now.tv_usec + usec) * 1000;
+	
+			while (wque->len == 0){
+				if (delay == 0xFFFFFFFF){
+					pthread_cond_wait(&pump->cond, &pump->lock);
+				}
+				else{
+					pthread_cond_timedwait(&pump->cond, &pump->lock, &outtime);
+					break;
+				}
 			}
 				
 			if (wque->len > 0)
@@ -233,7 +255,7 @@ static void* run(void* param)
 
 			pthread_mutex_unlock(&pump->lock);
 
-			curTime = GetSysTickCount64();
+			curTime = GetTickCount64();
 		}
 
 	}

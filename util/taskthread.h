@@ -1,13 +1,10 @@
 #ifndef TASKTHREAD_H
 #define TASKTHREAD_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include<pthread.h>
 #include <string.h>
 #include<stdio.h>
+#include"utils.h"
 
 #define TK_QUIT  1
 
@@ -21,7 +18,7 @@ typedef void* (*task_func_cb)(void *data);
 
 struct task_node_s
 {
-	int                     startTime;
+	uint64_t                startTime;
 	int                     delay;          //延迟执行时间
 	task_func_cb            func;           //任务函数
 	task_func_cb            release_func;   //数据释放函数
@@ -83,7 +80,4 @@ void task_queue_del(task_queue_t* tk_queue, task_node_t* tk_node);
 void task_queue_release(task_queue_t* tk_queue);
 void task_queue_merge(task_queue_t* tk_dst_queue, task_queue_t* tk_merge_queue);
 
-#ifdef __cplusplus
-}
-#endif
 #endif

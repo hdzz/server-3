@@ -12,9 +12,9 @@ void* ServerContext::_OfflineSocketTask(void* data)
 	PackBuf wsabuf = { 10, buf };
 	serverCtx->CreatePack_OffLine(&wsabuf);
 	serverCtx->UnPack(socketCtx, (uint8_t*)buf);
+	socketCtx->isRelease = true;
 	serverCtx->_RemoveSocketContext(socketCtx);
 
-	socketCtx->isRelease = true;
 	return 0;
 }
 
@@ -38,6 +38,10 @@ void* ServerContext::_PostRecvTask(void* data)
 {
 	IoContext* ioCtx = (IoContext*)data;
 	SocketContext* socketCtx = ioCtx->socketCtx;
+
+	if (socketCtx == 0)
+		return 0;
+
 	ServerContext* serverCtx = socketCtx->serverCtx;
 
 #ifdef _IOCP
@@ -109,7 +113,15 @@ void* ServerContext::_HeartBeatTask_CheckChildren(void* data)
 void* ServerContext::_HeartBeatTask_CheckServer(void* data)
 {
 	RemoteServerInfo* remoteServerInfo = (RemoteServerInfo*)data;
-	ServerContext* serverCtx = remoteServerInfo->socketCtx->serverCtx;
+	SocketContext* socketCtx = remoteServerInfo->socketCtx;
+	ServerContext* serverCtx;
+
+	if (socketCtx == 0){
+		delete remoteServerInfo;
+		return 0;
+	}
+
+	serverCtx = socketCtx->serverCtx;
 
 	if (serverCtx->isCheckServerHeartBeat)
 	{
@@ -125,9 +137,16 @@ void* ServerContext::_SendHeartBeatTask(void* data)
 {
 	RemoteServerInfo* remoteServerInfo = (RemoteServerInfo*)data;
 	SocketContext* socketCtx = remoteServerInfo->socketCtx;
-	ServerContext* serverCtx = socketCtx->serverCtx;
+	ServerContext* serverCtx;
+	
+	if (socketCtx == 0){
+		delete remoteServerInfo;
+		return 0;
+	}
 
-	if (serverCtx->isCheckServerHeartBeat)
+	serverCtx = socketCtx->serverCtx;
+
+	if (serverCtx->isSendServerHeartBeat)
 	{
 		IoContext* ioCtx = socketCtx->GetNewIoContext();
 		remoteServerInfo->CreateSendPack_HeartBeat(ioCtx);

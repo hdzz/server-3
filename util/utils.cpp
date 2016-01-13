@@ -1,12 +1,12 @@
 #include"utils.h"
 
 
+#ifdef WIN32
 
-/////////////////////////////////////////////////////////////////////////
-uint64_t GetSysTickCount64()
+#if _WIN32_WINNT < 0x0600 
+uint64_t GetTickCount64()
 {
 	uint64_t Ret;
-#ifdef _WIN32
 	static LARGE_INTEGER TicksPerSecond = { 0 };
 	LARGE_INTEGER Tick;
 
@@ -20,18 +20,46 @@ uint64_t GetSysTickCount64()
 	LONGLONG Seconds = Tick.QuadPart / TicksPerSecond.QuadPart;
 	LONGLONG LeftPart = Tick.QuadPart - (TicksPerSecond.QuadPart*Seconds);
 	LONGLONG MillSeconds = LeftPart * 1000 / TicksPerSecond.QuadPart;
-    Ret = Seconds * 1000 + MillSeconds;
-	
-#else
-	struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    Ret =  (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);  
-#endif
+	Ret = Seconds * 1000 + MillSeconds;
 
 	return Ret;
 }
+#endif
 
-/////////////////////////////////////////////////////////////////////////
+void __cdecl odprintfw(const wchar_t *format, ...)
+{
+	wchar_t buf[4096], *p = buf;
+	va_list args;
+	va_start(args, format);
+	p += _vsnwprintf(p, sizeof(buf) / sizeof(wchar_t), format, args);
+	va_end(args);
+	OutputDebugStringW(buf);
+}
+
+void __cdecl odprintfa(const char *format, ...)
+{
+	char buf[4096], *p = buf;
+	va_list args;
+	va_start(args, format);
+	p += _vsnprintf(p, sizeof(buf)-1, format, args);
+	va_end(args);
+
+	OutputDebugStringA(buf);
+}
+
+#else
+uint64_t GetTickCount64()
+{
+	uint64_t Ret;
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	Ret = (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+	return Ret;
+}
+#endif
+
+
+
 int GetNumProcessors()
 {
 #ifdef _WIN32
@@ -103,26 +131,4 @@ void GetLocalIP(char* ip)
 		ip[i] = ips[i];
 
 #endif
-}
-
-
-void __cdecl odprintfw(const wchar_t *format, ...)
-{
-	wchar_t buf[4096], *p = buf;
-	va_list args;
-	va_start(args, format);
-	p += _vsnwprintf(p, sizeof(buf)/sizeof(wchar_t), format, args);
-	va_end(args);
-	OutputDebugStringW(buf);
-}
-
-void __cdecl odprintfa(const char *format, ...)
-{
-	char buf[4096], *p = buf;
-	va_list args;
-	va_start(args, format);
-	p += _vsnprintf(p, sizeof(buf) - 1, format, args);
-	va_end(args);
-
-	OutputDebugStringA(buf);
 }

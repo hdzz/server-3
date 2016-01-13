@@ -42,6 +42,8 @@
 // 同时投递的Accept请求的数量(这个要根据实际的情况灵活设置)
 #define MAX_POST_ACCEPT              10
 
+#define ONE_DAY_MS        86400000  
+
 #define MAX_PATH          260
 // 缓冲区长度 (1024*4)
 #define MAX_BUFFER_LEN        2048

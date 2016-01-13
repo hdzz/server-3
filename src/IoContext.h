@@ -50,6 +50,7 @@ public:
 
 private:
 	void*           node;
+	uint64_t        timeStamp;
 
 	friend class SocketContext;
 	friend class ServerContext;

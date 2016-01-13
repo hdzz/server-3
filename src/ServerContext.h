@@ -51,13 +51,17 @@ public:
 	//连接远程服务器
 	bool ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 	{
-		return _ConnectRemoteServer(remoteServerInfo);
+		RemoteServerInfo* cRemoteServerInfo = new RemoteServerInfo();
+		cRemoteServerInfo->Copy(*remoteServerInfo);
+		return _ConnectRemoteServer(cRemoteServerInfo);
 	}
 
 	//投递连接远程服务器任务
 	bool PostConnectRemoteServerTask(RemoteServerInfo* remoteServerInfo)
 	{
-		return _PostTask(_ConnectRemoteServerTask, remoteServerInfo);
+		RemoteServerInfo* cRemoteServerInfo = new RemoteServerInfo();
+		cRemoteServerInfo->Copy(*remoteServerInfo);
+		return _PostTask(_ConnectRemoteServerTask, cRemoteServerInfo);
 	}
 
 	//发送包(当代码逻辑在任务处理器中时，可以直接使用此函数来发包)
@@ -225,7 +229,7 @@ private:
 
 	// 清空信息
 	template <class T>
-	void _ClearVecList(CmiVector<T>& vecList);
+	void _ClearVecList(CmiVector<T>& vecList, bool isDel = true);
 
 	void _HeartBeat_CheckChildren();
 	void _HeartBeat_CheckServer(RemoteServerInfo* remoteServerInfo);
@@ -342,6 +346,7 @@ protected:
 	bool                         isCheckChildrenHeartBeat;
 	int                          childLifeDelayTime;         // 每次检查所有客户端心跳状态的时间间隔
 	bool                         isCheckServerHeartBeat;
+	bool                         isSendServerHeartBeat;
 	bool                         isStop;
 
 private:

@@ -72,7 +72,7 @@ void* ServerContext::_DoAcceptTask(void* data)
 
 
 	//LOG4CPLUS_INFO(log.GetInst(),"接受来自地址"<<inet_ntoa(ClientAddr->sin_addr)<<"的链接.");
-	uint64_t timeStamp = GetSysTickCount64();
+	uint64_t timeStamp = GetTickCount64();
 	newSocketCtx = serverCtx->CreateClientSocketCtx(timeStamp);
 	newSocketCtx->sock = ioCtx->sock;
 	newSocketCtx->socketType = socketType;
@@ -123,13 +123,6 @@ void* ServerContext::_DoRecvTask(void* data)
 	IoContext* ioCtx = (IoContext*)data;
 	SocketContext* socketCtx = ioCtx->socketCtx;
 	ServerContext* serverCtx = socketCtx->serverCtx;
-	//CmiLogger& log = serverCtx->log;
-
-	if (socketCtx->sock == INVALID_SOCKET)
-	{
-		serverCtx->_NotPassRecvPack(socketCtx);
-		return 0;
-	}
 
 	socketCtx->UpdataTimeStamp();
 	//LOG4CPLUS_INFO(log.GetInst(),"来自地址"<<inet_ntoa(socketCtx->sockAddr.sin_addr)<<"的消息");

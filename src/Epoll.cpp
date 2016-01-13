@@ -64,7 +64,7 @@ void* ServerContext::_WorkerThread(void* pParam)
 					if(serverCtx->useMultithreading)
 						serverCtx->_DoRecv(ioCtx);
 					else
-						serverCtx->_PostTask(_DoRecvTask, socketCtx, ioCtx);
+						serverCtx->_PostTask(_DoRecvTask, ioCtx);
 				}
 			}
 			else if (events & EPOLLOUT) // 如果有数据发送
@@ -78,13 +78,13 @@ void* ServerContext::_WorkerThread(void* pParam)
 				    socklen_t len;
 					if(0 == getsockopt(socketCtx->sock, SOL_SOCKET, SO_ERROR, &err, &len)){
 						if(err == 0){
-							serverCtx->_PostTask(_DoConnectTask, socketCtx, ioCtx);
+							serverCtx->_PostTask(_DoConnectTask, ioCtx);
 						}
 					}
 				}
 				else
 				{
-					serverCtx->_PostTask(_DoSendTask, ioCtx->socketCtx, ioCtx);
+					serverCtx->_PostTask(_DoSendTask, ioCtx);
 				}
 			}
 		}
