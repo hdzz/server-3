@@ -53,6 +53,7 @@ void* ServerContext::_DoAcceptTask(void* data)
 
 	//取得连入客户端的地址信息,通过 lpfnGetAcceptExSockAddrs
 	//不但可以取得客户端和本地端的地址信息，还能顺便取出客户端发来的第一组数据
+	
 	serverCtx->lpfnGetAcceptExSockAddrs(
 		ioCtx->packBuf.buf,
 		0,
@@ -64,11 +65,12 @@ void* ServerContext::_DoAcceptTask(void* data)
 		&remoteLen);
 
 
-	err = setsockopt( ioCtx->sock,
-    SOL_SOCKET,
-    SO_UPDATE_ACCEPT_CONTEXT,
-	(char *)&(socketCtx->sock),
-    sizeof(socketCtx->sock) );
+	err = setsockopt(
+		ioCtx->sock,
+		SOL_SOCKET,
+		SO_UPDATE_ACCEPT_CONTEXT,	
+		(char *)&(socketCtx->sock),
+		sizeof(socketCtx->sock) );
 
 
 	//LOG4CPLUS_INFO(log.GetInst(),"接受来自地址"<<inet_ntoa(ClientAddr->sin_addr)<<"的链接.");
@@ -93,7 +95,6 @@ void* ServerContext::_DoAcceptTask(void* data)
 	serverCtx->_AddToClientCtxList(newSocketCtx);
 	//LOG4CPLUS_INFO(log.GetInst(),"SocketCtx:"<<"["<<newSocketCtx<<"]"<<"被添加到ClientCtxList表中");
 
-
 	// 然后开始投递下一个WSARecv请求
 	if (false == serverCtx->_PostRecv(newSocketCtx->GetNewIoContext()))
 	{
@@ -104,7 +105,7 @@ void* ServerContext::_DoAcceptTask(void* data)
 	{
 		serverCtx->_AcceptedClientPack(newSocketCtx);
 	}
-
+	
 end:
 	// 投递新的AcceptEx
 	if (false == serverCtx->_PostAccept(ioCtx))
@@ -122,7 +123,12 @@ void* ServerContext::_DoRecvTask(void* data)
 {
 	IoContext* ioCtx = (IoContext*)data;
 	SocketContext* socketCtx = ioCtx->socketCtx;
-	ServerContext* serverCtx = socketCtx->serverCtx;
+	ServerContext* serverCtx;
+
+	if (socketCtx == 0)
+		return 0;
+
+	serverCtx = socketCtx->serverCtx;
 
 	socketCtx->UpdataTimeStamp();
 	//LOG4CPLUS_INFO(log.GetInst(),"来自地址"<<inet_ntoa(socketCtx->sockAddr.sin_addr)<<"的消息");
@@ -148,7 +154,12 @@ void* ServerContext::_DoSendTask(void* data)
 {
 	IoContext* ioCtx = (IoContext*)data;
 	SocketContext* socketCtx = ioCtx->socketCtx;
-	ServerContext* serverCtx = socketCtx->serverCtx;
+	ServerContext* serverCtx;
+
+	if (socketCtx == 0)
+		return 0;
+
+	serverCtx = socketCtx->serverCtx;
 	//CmiLogger& log = serverCtx->log;
 
 	socketCtx->ChangeToFreeState(ioCtx);

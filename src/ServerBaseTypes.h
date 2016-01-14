@@ -40,7 +40,7 @@
 // 每一个处理器上产生多少个线程(为了最大限度的提升服务器性能，详见配套文档)
 #define WORKER_THREADS_PER_PROCESSOR 2
 // 同时投递的Accept请求的数量(这个要根据实际的情况灵活设置)
-#define MAX_POST_ACCEPT              10
+#define MAX_POST_ACCEPT              20
 
 #define ONE_DAY_MS        86400000  
 

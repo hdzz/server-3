@@ -297,7 +297,7 @@ bool ServerContext::_InitPostAccept(SocketContext *listenCtx)
 	for (int i = 0; i < MAX_POST_ACCEPT; i++)
 	{
 		// 新建一个IO_CONTEXT
-		ioCtx = listenCtx->GetNewIoContext(1);
+		ioCtx = listenCtx->GetNewIoContext((sizeof(SOCKADDR_IN)+16) * 2);
 		listenCtx->AddToList(ioCtx);
 	}
 

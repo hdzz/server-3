@@ -51,13 +51,12 @@ uint64_t GetTickCount64();
 #define odprintf odprintfa
 #endif // !UNICODE
 
-
-uint64_t GetSysTickCount64();
-
 struct timezone;
 int gettimeofday(struct timeval *tv, struct timezone *tz);
+
 #else
 uint64_t GetTickCount64();
+
 #endif
 
 void __cdecl odprintfw(const wchar_t *format, ...);

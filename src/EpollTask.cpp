@@ -125,7 +125,12 @@ void* ServerContext::_DoRecvTask(void* data)
 {
 	IoContext* ioCtx = (IoContext*)data;
 	SocketContext* socketCtx = ioCtx->socketCtx;
-	ServerContext* serverCtx = socketCtx->serverCtx;
+	ServerContext* serverCtx;
+
+	if (socketCtx == 0)
+		return 0;
+
+	serverCtx = socketCtx->serverCtx;
 	////CmiLogger& log = serverCtx->log;
 	char* buf = ioCtx->buf;
 	int bufSize = ioCtx->packBuf.len;
@@ -195,7 +200,12 @@ void* ServerContext::_DoSendTask(void* data)
 {
 	IoContext* ioCtx = (IoContext*)data;
 	SocketContext* socketCtx = ioCtx->socketCtx;
-	ServerContext* serverCtx = socketCtx->serverCtx;
+	ServerContext* serverCtx;
+
+	if (socketCtx == 0)
+		return 0;
+
+	serverCtx = socketCtx->serverCtx;
 
 	//CmiLogger& log = serverCtx->log;
 	int count;

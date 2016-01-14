@@ -319,7 +319,7 @@ bool ServerContext::_ListenRemoteChildren()
 
 	if (isCheckChildrenHeartBeat)
 	{
-		PostTimerTask(_HeartBeatTask_CheckChildren, 0, this, childLifeDelayTime);
+		PostTimerTask(_HeartBeatTask_CheckChildren, 0, this, childLifeDelayTime - 1000);
 	}
 
 	return true;
@@ -655,8 +655,7 @@ void ServerContext::_AddToRemoteServerInfoList(RemoteServerInfo* remoteServerInf
 
 	if (isCheckServerHeartBeat && remoteServerInfo->isCheckHeartBeat)
 	{	
-		PostTimerTask(_HeartBeatTask_CheckServer, 0, remoteServerInfo, remoteServerInfo->lifeDelayTime);
-		PostTimerTask(_SendHeartBeatTask, 0, remoteServerInfo, remoteServerInfo->sendHeartBeatPackTime);
+		PostTimerTask(_HeartBeatTask_CheckServer, 0, remoteServerInfo, remoteServerInfo->lifeDelayTime - 100);
 	}
 
 	if (isSendServerHeartBeat && remoteServerInfo->sendHeartBeatPackTime)
