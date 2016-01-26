@@ -1,0 +1,170 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="server">
+      <UniqueIdentifier>{484bdbf3-5f9d-4b42-a0a6-23996893473b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="server\src">
+      <UniqueIdentifier>{f90d9ce9-cc4b-439c-8314-14eef3879ac2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="server\util">
+      <UniqueIdentifier>{eb079949-adfa-43ee-9629-5405beacc22b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ChatClient">
+      <UniqueIdentifier>{78a5a39d-e935-41bc-bd6e-e2ed35579af1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="jni">
+      <UniqueIdentifier>{05656281-ff3f-4cb3-b58d-3452ee1e4bc6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="server\src\EpollToIocp">
+      <UniqueIdentifier>{82747bd0-68d6-4153-88aa-4baba5edc66d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\server\src\ExtractPack.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\IoContext.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\ServerBaseTypes.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\ServerContext.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\SocketContext.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiMemory.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiNode.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiRef.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiSingleton.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiThreadLock.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiVector.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\CmiWaitSem.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\taskthread.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\utils.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="ChatClient.h">
+      <Filter>ChatClient</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\TaskProcesser.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\util\include\loadlib.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\RemoteServerInfo.h">
+      <Filter>server\src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\EpollToIocp\EpollBaseType.h">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\EpollToIocp\EpollIO.h">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\EpollToIocp\EpollToIocp.h">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\server\src\EpollToIocp\ThreadData.h">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\server\src\Epoll.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\ExtractPark.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\IoContext.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\Iocp.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\ServerContext.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\SocketContext.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\util\CmiNode.cpp">
+      <Filter>server\util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\util\CmiRef.cpp">
+      <Filter>server\util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\util\utils.cpp">
+      <Filter>server\util</Filter>
+    </ClCompile>
+    <ClCompile Include="ChatClient.cpp">
+      <Filter>ChatClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\TaskProcesser.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseType.h">
+      <Filter>ChatClient</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>ChatClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\util\taskthread.cpp">
+      <Filter>server\util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\RemoteServerInfo.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\SharedTask.cpp">
+      <Filter>server\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\util\gettimeofday.cpp">
+      <Filter>server\util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\EpollToIocp\EpollIO.cpp">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\EpollToIocp\EpollToIocp.cpp">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\src\EpollToIocp\ThreadData.cpp">
+      <Filter>server\src\EpollToIocp</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\server\src\Text.txt">
+      <Filter>server\src</Filter>
+    </Text>
+  </ItemGroup>
+</Project>
