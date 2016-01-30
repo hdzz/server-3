@@ -119,7 +119,7 @@ int post_task(task_thread_t tk_thread, task_node_t* tk, int delay)
 
 		pump->lock->UnLock();
 		pump->sem->SetSem();
-		pump->lock->Lock();
+		return 0;
 	}
 	else
 	{
@@ -275,15 +275,17 @@ static void* run(void* param)
 #ifdef _WIN32
 			while (wque->len == 0)
 			{
+				pump->lock->UnLock();
 				if (delay == 0xFFFFFFFF){
-					pump->lock->UnLock();
 					pump->sem->WaitSem(-1);
-					pump->lock->Lock();
 				}
 				else{
 					pump->sem->WaitSem(delay);
-					break;
-				}
+					delay = 0xFFFFFFFF;
+					pump->lock->Lock();
+					break;	
+				}	
+				pump->lock->Lock();
 			}
 #else
 			while (wque->len == 0)
@@ -300,6 +302,7 @@ static void* run(void* param)
 					outtime.tv_sec = now.tv_sec + sec;
 					outtime.tv_nsec = (now.tv_usec + usec) * 1000;
 					pthread_cond_timedwait(&pump->cond, &pump->lock->GetMutex(), &outtime);
+					delay = 0xFFFFFFFF;
 					break;
 				}
 			}

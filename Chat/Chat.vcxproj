@@ -167,6 +167,7 @@
     <ClInclude Include="..\server\util\CmiVector.h" />
     <ClInclude Include="..\server\util\CmiWaitSem.h" />
     <ClInclude Include="..\server\util\include\loadlib.h" />
+    <ClInclude Include="..\server\util\IocpExFuncs.h" />
     <ClInclude Include="..\server\util\taskthread.h" />
     <ClInclude Include="..\server\util\utils.h" />
     <ClInclude Include="ChatClient.h" />
@@ -187,6 +188,7 @@
     <ClCompile Include="..\server\util\CmiNode.cpp" />
     <ClCompile Include="..\server\util\CmiRef.cpp" />
     <ClCompile Include="..\server\util\gettimeofday.cpp" />
+    <ClCompile Include="..\server\util\IocpExFuncs.cpp" />
     <ClCompile Include="..\server\util\taskthread.cpp" />
     <ClCompile Include="..\server\util\utils.cpp" />
     <ClCompile Include="BaseType.h" />

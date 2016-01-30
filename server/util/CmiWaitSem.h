@@ -41,10 +41,13 @@ public:
 int WaitSem(long  delayMillisecond)
 {
 #ifdef _WIN32
-if(WAIT_OBJECT_0 != WaitForSingleObject(handle, delayMillisecond))
-           return  TIMEDOUT;
-else
-           return  WAITSEM;
+	int ret = WaitForSingleObject(handle, delayMillisecond);
+	ResetEvent(handle);
+
+	if(WAIT_OBJECT_0 != ret)
+		return  TIMEDOUT;
+	else
+		return  WAITSEM;
 #else
 if(delayMillisecond < 0)
 {
@@ -98,7 +101,7 @@ private:
 
 	void Init(){
 #ifdef _WIN32
-		handle = CreateEvent(NULL, FALSE, FALSE, NULL);
+		handle = CreateEvent(NULL, TRUE, FALSE, NULL);
 #else
 		pthread_mutex_init(&lock,NULL);
 		pthread_cond_init(&cond, NULL);

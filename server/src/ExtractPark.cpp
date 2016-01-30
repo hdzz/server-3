@@ -16,8 +16,6 @@ int ExtractPack::Extract()
 
 	while (1)
 	{
-
-
 		if (cachePackBuf->buf == 0)
 		{
 			if (curtPackLen >= packHeadLen)
@@ -35,14 +33,14 @@ int ExtractPack::Extract()
 
 			if (calcPackLen == curtPackLen)
 			{
-				serverCtx->UnPack(curtPackSocketCtx, curtPack);
+				serverCtx->UnPack(EV_PACK_RECV, curtPackSocketCtx, curtPack);
 				return 0;
 			}
 			else if (calcPackLen < curtPackLen)
 			{
 				memcpy(buf, curtPack, calcPackLen);
 				buf[calcPackLen] = '\0';
-				serverCtx->UnPack(curtPackSocketCtx, buf);
+				serverCtx->UnPack(EV_PACK_RECV, curtPackSocketCtx, buf);
 
 				curtPack += calcPackLen;
 				curtPackLen -= calcPackLen;
@@ -80,7 +78,7 @@ int ExtractPack::Extract()
 					{
 						memcpy(cachePackBuf->buf + cachePackBuf->len, curtPack + leavePackHeadLen, calcPackLen - leavePackHeadLen);
 						cachePackBuf->len += calcPackLen - leavePackHeadLen;
-						serverCtx->UnPack(curtPackSocketCtx, (uint8_t*)(cachePackBuf->buf));
+						serverCtx->UnPack(EV_PACK_RECV, curtPackSocketCtx, (uint8_t*)(cachePackBuf->buf));
 
 						free(cachePackBuf->buf);
 						cachePackBuf->buf = 0;
@@ -109,7 +107,7 @@ int ExtractPack::Extract()
 				{
 					memcpy(cachePackBuf->buf + cachePackBuf->len, curtPack, calcPackLen);
 					cachePackBuf->len += calcPackLen;
-					serverCtx->UnPack(curtPackSocketCtx, (uint8_t*)(cachePackBuf->buf));
+					serverCtx->UnPack(EV_PACK_RECV, curtPackSocketCtx, (uint8_t*)(cachePackBuf->buf));
 
 					free(cachePackBuf->buf);
 					cachePackBuf->buf = 0;

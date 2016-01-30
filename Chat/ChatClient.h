@@ -3,20 +3,19 @@
 
 #include"ServerContext.h"
 #include"BaseType.h"
-
+#include <fstream>
+#include <iostream>
+using namespace std;
 
 class ChatClient :public ServerContext
 {
 public:
-	ChatClient(int _index, int _port, TaskProcesser* _taskProcesser = 0)
-		:ServerContext(_taskProcesser)
+	ChatClient(int _id)
 	{
+		id = _id;
+		recvSize = 0;
 		useListen = false;
-		//useWaitConnectRemoteServer = true;
-		//useMultithreading = true;
 	//	isSendServerHeartBeat = true;
-		port = _port;
-		index = _index;
 	}
 
 	~ChatClient(void){}
@@ -27,31 +26,20 @@ public:
 	//	Í£Ö¹·þÎñÆ÷
 	//virtual void Stop();
 
-	void UnPack(SocketContext* socketCtx, uint8_t* pack);
+	void SetDownFile(char* _remoteFilePath);
+	void StartDownLoad();
 
 
-	void UnPack_SocketOffline(SocketContext* socketCtx, uint8_t* pack, int len);
-	void SendPack_Msg(SocketContext* socketCtx, char* msg, int len);
-	void Unpack_Send_Msg(uint8_t* pack, int len);
+	void UnPack(Event ev, const SocketContext* socketCtx, const uint8_t* pack);
+
+	void ProcessEvPackRecv(const SocketContext* socketCtx, const uint8_t* pack);
+	void UnPack_ServerFileInfo(const SocketContext* socketCtx, const uint8_t* pack, int len);
+	void UnPack_ServerFileBlock(const SocketContext* socketCtx, const uint8_t* pack, int len);
+	void SendPack_RequestDownFile();
+	void SendPack_BeginDownFile(uint64_t beg, uint64_t end);
 
 
 private:
-
-	virtual bool CreatePack_OffLine(PackBuf* pack)
-	{
-		PackHeader* packHeader = (PackHeader*)(pack->buf);
-		packHeader->type = PACK_SOCKET_OFFLINE;
-		packHeader->len = 0;
-		return true;
-	}
-
-	virtual bool CreatePack_Connected(PackBuf* pack)
-	{
-		PackHeader* packHeader = (PackHeader*)(pack->buf);
-		packHeader->type = PACK_SOCKET_CONNECTED;
-		packHeader->len = 0;
-		return true;
-	}
 
 	virtual IoContext* CreateIoContext_PostConnectPack(SocketContext* socketCtx)
 	{
@@ -65,24 +53,26 @@ private:
 	}
 
 
-
-	static void CreateSendPack_HeartBeat(IoContext* ioCtx);
-	
-
-
-
+	static IoContext* CreateSendPack_HeartBeat(SocketContext* socketCtx);
 	uint8_t* CreatePackAddr(IoContext* ioCtx, PackType packType, int packLen);
-
 	static void* SendHeartBeatTask(void* data);
-	//static void* _work(void* data);
-	static DWORD WINAPI _work(LPVOID data);
+
 
 private:
 	RemoteServerInfo gameServerInfo;
-	int port;
-	int index;
-	//pthread_t                  workerThread;
-	HANDLE workerThread;
+
+	const SocketContext* socketCtx;
+	std::string localFilePath;
+	std::string remoteFilePath;
+	ofstream file;
+	uint64_t size;
+	uint64_t tellg_begin;
+	uint64_t tellg_end;
+	uint64_t reqRangeBeg;
+	uint64_t reqRangeEnd;
+	int id;
+	uint64_t recvSize;
+	uint64_t fileSize;
 };
 
 #endif

@@ -1,9 +1,12 @@
 ﻿#ifndef TASKTHREAD_H
 #define TASKTHREAD_H
 
+#ifndef _WIN32
 #include<pthread.h>
 #include <signal.h>
 #include<errno.h>
+#endif
+
 #include <string.h>
 #include<stdio.h>
 #include"utils.h"

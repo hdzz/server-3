@@ -12,124 +12,141 @@ bool ChatClient::Start()
 	
 	gameServerInfo.remoteServerIP.append("192.168.1.103");
 	gameServerInfo.remoteServerPort = 6666;
-	gameServerInfo.localConnectPort = port;
+	gameServerInfo.localConnectPort = 5565;
 	gameServerInfo.isCheckHeartBeat = true;
 	gameServerInfo.sendHeartBeatPackTime = 1000;
-//	gameServerInfo.CreateSendPack_HeartBeat = CreateSendPack_HeartBeat;
+	gameServerInfo.CreateSendPack_HeartBeat = CreateSendPack_HeartBeat;
 
 	ConnectRemoteServer(&gameServerInfo);
-
-	//workerThread = CreateThread(NULL, 0, _work, (void*)this, 0, NULL);
-
-	//pthread_create(&workerThread, 0, _work, (void*)this);
-
 	return true;
 }
 
 
-void ChatClient::UnPack(SocketContext* socketCtx, uint8_t* pack)
+void ChatClient::UnPack(Event ev, const SocketContext* socketCtx, const uint8_t* pack)
+{
+	switch (ev)
+	{
+	case EV_SOCKET_CONNECTED:
+		ChatClient::socketCtx = socketCtx;
+		SetDownFile("c://x.mp4");
+		//SetDownFile("G://download//cn_windows_10_multiple_editions_x64_dvd_6848463.iso");
+		StartDownLoad();
+		break;
+
+	case EV_SOCKET_OFFLINE:
+		printf("offline!!\n");
+		break;
+
+	case EV_PACK_RECV:
+		ProcessEvPackRecv(socketCtx, pack);
+		break;
+	}
+}
+
+void ChatClient::ProcessEvPackRecv(const SocketContext* socketCtx, const uint8_t* pack)
 {
 	PackHeader* header = (PackHeader*)pack;
-	uint8_t* datapack = pack + sizeof(PackHeader);
+	uint8_t* datapack = (uint8_t*)pack + sizeof(PackHeader);
 	int len = header->len;
-	static char* msg = "hellsd f!!!";
-	static char* msgx = "secode my ok!!!";
 
 	switch (header->type)
 	{
-	case PACK_SOCKET_OFFLINE:
-		UnPack_SocketOffline(socketCtx, 0, 0);
+	case PACK_SERVER_FILE_INFO:
+		UnPack_ServerFileInfo(socketCtx, datapack, len);
 		break;
 
-	case PACK_SOCKET_ACCEPTED:
+	case PACK_SERVER_FILE_BLOCK:
+		UnPack_ServerFileBlock(socketCtx, datapack, len);
 		break;
+	}
+}
 
-	case PACK_SEND_MSG:
+void ChatClient::UnPack_ServerFileInfo(const SocketContext* socketCtx, const uint8_t* pack, int len)
+{
+	fileSize = *(uint64_t*)pack;
+
+	if (size < fileSize)
 	{
-						  Sleep(10);
-						  Unpack_Send_Msg(datapack, len);
-						  SendPack_Msg(socketCtx, msg, strlen(msg));
-
-						  /*
-						  SendPack_Msg(socketCtx, msgx, strlen(msgx));
-						  SendPack_Msg(socketCtx, msgx, strlen(msgx));
-
-						  char* msgx4 = "secode my ok4!!!";
-						  SendPack_Msg(socketCtx, msgx4, strlen(msgx4));
-						  SendPack_Msg(socketCtx, msgx4, strlen(msgx4));
-						  SendPack_Msg(socketCtx, msgx4, strlen(msgx4));
-
-
-						  char* msgx3 = "secode my ok3!!!";
-						  SendPack_Msg(socketCtx, msgx3, strlen(msgx3));
-						*/
-						 
-	}
-		break;
-
-	case PACK_RESPONSE_SEND_MSG:
-		break;
-
-	case PACK_GAME_PLAY:
-		break;
+		SendPack_BeginDownFile(size, fileSize);
 	}
 }
 
-void ChatClient::UnPack_SocketOffline(SocketContext* socketCtx, uint8_t* pack, int len)
+
+void ChatClient::UnPack_ServerFileBlock(const SocketContext* socketCtx, const uint8_t* pack, int len)
 {
-	printf("client:server [%d] offline!! \n", (int)socketCtx);
+	char* block = (char*)(pack + (sizeof(uint64_t)*2));
+	recvSize += len - sizeof(uint64_t)* 2;
+	file.write(block, len - sizeof(uint64_t)* 2);
+  
+	if (recvSize >= fileSize)
+		file.close();
+}
+
+
+void ChatClient::SetDownFile(char* _remoteFilePath)
+{
+	remoteFilePath = _remoteFilePath;
+
+	char buf[100] = {0};
+	sprintf(buf, "c:\\x%d.mp4", id);
+	localFilePath = buf;
+}
+
+void ChatClient::StartDownLoad()
+{
+	file.open(localFilePath, ios_base::binary | ios::app);
+	tellg_begin = file.tellp();
+	file.seekp(0, ios_base::end);
+	tellg_end = file.tellp();
+	size = tellg_end - tellg_begin;
+
+	SendPack_RequestDownFile();
 }
 
 
 
-void ChatClient::Unpack_Send_Msg(uint8_t* pack, int len)
+void ChatClient::SendPack_RequestDownFile()
 {
-	printf("client %d:%s\n",index++, pack);
-}
+	int packSize = remoteFilePath.size();
 
-
-void ChatClient::SendPack_Msg(SocketContext* socketCtx, char* msg, int len)
-{
-
-	IoContext* ioCtx = CreateIoContext();//new IoContext();
-	ioCtx->socketCtx = socketCtx;
+	IoContext* ioCtx = CreateIoContext(packSize + GetPackHeadLength());
 	ioCtx->sock = socketCtx->sock;
+	ioCtx->socketCtx = (SocketContext*)socketCtx;
 	ioCtx->serverCtx = socketCtx->serverCtx;
 
-	//IoContext* ioCtx = socketCtx->GetNewIoContext();
-
-	/*
-	uint8_t* pack = CreatePackAddr(ioCtx, PACK_SEND_MSG, len*sizeof(char));
-	memcpy(pack, msg, len*sizeof(char));
-
-	if (false == _PostSend(ioCtx))
-	{
-		_AddToFreeList(ioCtx);
-		SendSocketAbnormal(socketCtx);
-	}
-	*/
-	
-
-	uint8_t* pack = CreatePackAddr(ioCtx, PACK_SEND_MSG, len*sizeof(char));
-	memcpy(pack, msg, len*sizeof(char));
-
-	/*
-	if (false == _PostSend(ioCtx))
-	{
-		ReleaseIoContext(ioCtx);
-		SendSocketAbnormal(socketCtx);
-	}
-	*/
-
-	PostSendPack(ioCtx);
+	uint8_t* pack = CreatePackAddr(ioCtx, PACK_CLIENT_REQUEST_DOWNFILE, packSize);
+	memcpy(pack, remoteFilePath.c_str(), remoteFilePath.size());
+	SendPack(ioCtx);
 }
 
 
-
-void ChatClient::CreateSendPack_HeartBeat(IoContext* ioCtx)
+void ChatClient::SendPack_BeginDownFile(uint64_t beg, uint64_t end)
 {
-	ChatClient* chatClient = (ChatClient*)(ioCtx->socketCtx->serverCtx);
+	int packSize = sizeof(uint64_t) * 2;
+
+	IoContext* ioCtx = CreateIoContext(packSize + GetPackHeadLength());
+	ioCtx->sock = socketCtx->sock;
+	ioCtx->socketCtx = (SocketContext*)socketCtx;
+	ioCtx->serverCtx = socketCtx->serverCtx;
+
+	uint8_t* pack = CreatePackAddr(ioCtx, PACK_CLIENT_BEGIN_DOWNFILE, packSize);
+
+	uint64_t* pbeg = (uint64_t*)pack;
+	*pbeg = beg;
+
+	uint64_t* pend = (uint64_t*)(pack + sizeof(uint64_t));
+	*pend = end;
+
+	SendPack(ioCtx);
+}
+
+
+IoContext* ChatClient::CreateSendPack_HeartBeat(SocketContext* socketCtx)
+{
+	ChatClient* chatClient = (ChatClient*)(socketCtx->serverCtx);
+	IoContext* ioCtx = socketCtx->GetNewIoContext(chatClient->GetPackHeadLength());
 	chatClient->CreatePackAddr(ioCtx, PACK_HEARTBEAT, 0);
+	return ioCtx;
 }
 
 uint8_t* ChatClient::CreatePackAddr(IoContext* ioCtx, PackType packType, int packLen)

@@ -39,16 +39,8 @@ public:
 		isCheckServerHeartBeat = bCheck;
 	}
 
-	//连接远程服务器
+	//连接远程服务器任务
 	bool ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
-	{
-		RemoteServerInfo* cRemoteServerInfo = new RemoteServerInfo();
-		cRemoteServerInfo->Copy(*remoteServerInfo);
-		return _ConnectRemoteServer(cRemoteServerInfo);
-	}
-
-	//投递连接远程服务器任务
-	bool PostConnectRemoteServerTask(RemoteServerInfo* remoteServerInfo)
 	{
 		RemoteServerInfo* cRemoteServerInfo = new RemoteServerInfo();
 		cRemoteServerInfo->Copy(*remoteServerInfo);
@@ -56,12 +48,7 @@ public:
 	}
 
 	//直接发送包
-	bool SendPack(IoContext* ioCtx)
-	{
-		if (false == _PostSend(ioCtx))
-			return false;
-		return true;
-	}
+	bool SendPack(IoContext* ioCtx);
 
 	//投递任务包到线性任务器中
 	bool PostSendPack(IoContext* ioCtx, int delay = 0)
@@ -112,54 +99,15 @@ public:
 	virtual void Stop();
 
 	//从对方socket那边接收到的数据包在这个函数中处理，系统自动调用此函数解包
-	virtual void UnPack(SocketContext* socketCtx, uint8_t* pack)
+	virtual void UnPack(Event ev, const SocketContext* socketCtx, const uint8_t* pack)
 	{
 	}
 
-	//自定义对方socket离线后的包内容，供系统UnPack调用
-	virtual bool CreatePack_OffLine(PackBuf* pack)
-	{
-		return true;
-	}
-
-	//自定义连接上对方socket后的包内容，供系统UnPack调用
-	virtual bool CreatePack_Connected(PackBuf* pack)
-	{
-		return true;
-	}
-
-	//自定义已向对方socket发送包内容的通知消息，供系统UnPack调用
-	virtual bool CreatePack_Sended(PackBuf* pack)
-	{
-		return true;
-	}
-
-	//自定义连接上对方socket后的包内容，供系统UnPack调用
-	virtual bool CreatePack_NotPassRecv(PackBuf* pack)
-	{
-		return true;
-	}
-
-	//自定义接受到对方socket后的包内容，供系统UnPack调用
-	virtual bool CreatePack_Accepted(PackBuf* pack)
-	{
-		return true;
-	}
 
 	//自定义连接上对方socket后发送的内容包
 	virtual IoContext* CreateIoContext_PostConnectPack(SocketContext* socketCtx)
 	{
 		return 0;
-	}
-
-	virtual SocketContext* CreateClientSocketCtx(uint64_t timeStamp)
-	{
-		return _GetNewSocketContext(timeStamp);
-	}
-
-	virtual SocketContext* CreateConnectSocketCtx(uint64_t timeStamp)
-	{
-		return _GetNewSocketContext(timeStamp);
 	}
 
 	virtual int GetPackHeadLength()
@@ -190,11 +138,14 @@ public:
 	bool CreateAddressInfo(const char* name, u_short hostshort, SOCKADDR_IN& localAddress);
 
 
+public:
+	static bool LoadWsafunc_AccpetEx(SOCKET tmpsock);
+	static bool LoadWsafunc_ConnectEx(SOCKET tmpsock);
+	
 protected:
 
 //private:
 
-	SOCKET _Socket();
 	int _GetLastError();
 
 	//初始化本机相关信息
@@ -211,14 +162,10 @@ protected:
 	void _AddToClientCtxList(SocketContext *socketCtx);
 
 	//移除socket(当代码逻辑在任务处理器中时，可以直接使用此函数来移除socket)
-	bool _RemoveSocketContext(SocketContext *socketCtx);
+	void _RemoveSocketContext(SocketContext *socketCtx);
 
-	SocketContext* _GetNewSocketContext(uint64_t timeStamp);
-	void _AddToFreeList(SocketContext *socketCtx);
+	SOCKET _Socket();
 
-	// 清空信息
-	template <class T>
-	void _ClearVecList(CmiVector<T>& vecList, bool isDel = true);
 
 	void _HeartBeat_CheckChildren();
 	void _HeartBeat_CheckServer(RemoteServerInfo* remoteServerInfo);
@@ -239,15 +186,13 @@ protected:
 
 	bool _PostTaskData(task_func_cb taskfunc, task_func_cb tk_release_func, void* taskData, int delay = 0);
 
-	void _ConnectedPack(SocketContext* socketCtx);
-	void _SendedPack(SocketContext* socketCtx);
-	void _AcceptedClientPack(SocketContext* socketCtx);
 
-	void _AddToRemoteServerInfoList(RemoteServerInfo* remoteServerInfo);
+	void _CreateCheckRemoteServerTimer(SocketContext* socketCtx);
 
 	void _DoAccept(IoContext* ioCtx);
 	void _DoRecv(IoContext* ioCtx);
 	void _DoSend(IoContext* ioCtx);
+	
 
 	// 投递Connect请求
 	bool _PostConnect(IoContext* ioCtx,SOCKADDR_IN& sockAddr);
@@ -273,19 +218,19 @@ protected:
 
 	// 初始化IOCP
 	bool _InitializeIOCP();
-	bool _LoadWsafunc_AccpetEx(SOCKET tmpsock);
-	bool _LoadWsafunc_ConnectEx(SOCKET tmpsock);
-
+	
 	// 线程函数，为IOCP请求服务的工作者线程
 	static DWORD WINAPI _WorkerThread(LPVOID param);
-
-
+	static void* _DoSendTask(void* data);
+	static void* _PostAcceptTask(void* data);
+	static void* _PostInitAcceptTask(void* data);
 #endif
 
 
 #ifdef _EPOLL
 	//初始化Epoll
 	bool _InitializeEPOLL();
+
 
 	// 线程函数，为epoll请求服务的工作者线程
 	static void* _WorkerThread(void* param);
@@ -323,28 +268,21 @@ protected:
 	bool                         isStop;
 
 private:
+	map<SOCKET, SocketContext*>  sockmap;
 	TaskProcesser*               taskProcesser;
-	SocketCtxList                socketctxFreeList;
 
 	int                          serverType;
 	int		                     nThreads;                   // 生成的线程数量
 	std::string                  localIP;                    // 本机IP地址
 	int                          localListenPort;            // 本机监听端口
 	SocketContext*               listenCtx;                  // 用于监听的Socket的Context信息
-
-	SocketCtxList                clientCtxList;              // 客户端Socket的Context信息
-	RemoteServerInfoList         remoteServerInfoList;       // 远程服务器信息表
-
 	volatile long                exitWorkThreads;
 
 #ifdef _IOCP
 	HANDLE                       iocp;                       // 完成端口的句柄
 	DWORD                        key;                        // 工作者线程组指针
 	HANDLE*                      workerThreads;
-	LPFN_CONNECTEX               lpfnConnectEx;
-	LPFN_DISCONNECTEX            lpfnDisConnectEx;
-	LPFN_ACCEPTEX                lpfnAcceptEx;               // AcceptEx 和 GetAcceptExSockaddrs 的函数指针，用于调用这两个扩展函数
-	LPFN_GETACCEPTEXSOCKADDRS    lpfnGetAcceptExSockAddrs;
+	CmiVector<SOCKET>            reusedSocketList;           // 可重用的socket列表 
 #endif
 
 #ifdef _EPOLL

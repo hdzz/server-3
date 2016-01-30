@@ -15,11 +15,6 @@ public:
 	// 释放资源
 	virtual ~SocketContext();
 
-	void SetNode(void* nd)
-	{
-		node = nd;
-	}
-
 	void UpdataTimeStamp(uint64_t _timeStamp)
 	{
 		timeStamp = _timeStamp;
@@ -37,38 +32,21 @@ public:
 		return remoteServerInfo;
 	}
 
-	void* GetExtensionData()
-	{
-		return  extensionData;
-	}
-
-	void SetExtensionData(void* data)
-	{
-		extensionData = data;
-	}
-
-	void SetExtDataReleaseFunc(DataReleaseFunc func)
-	{
-		extDataRelease = func;
-	}
-
 public:
 	SOCKET             sock;
 	SocketType         socketType;
-	SocketVerifType    verifType;
 	SOCKADDR_IN        sockAddr;
 	uint64_t           timeStamp;
 	PackBuf            unPackCache;
 
-	void*              extensionData;
-	DataReleaseFunc    extDataRelease;
 	RemoteServerInfo  *remoteServerInfo;
 	ServerContext     *serverCtx;
 	int                holdCount;
 
 private:
-	void              *node;
-	bool               isRelease;
+#ifdef _IOCP
+	IoCtxList         sendList;
+#endif
 
 	friend class ServerContext;
 };

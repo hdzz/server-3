@@ -1,8 +1,6 @@
 ﻿#ifndef _SERVERBASETYPES_H_
 #define _SERVERBASETYPES_H_
 
-#define _linux
-
 #if defined(_WIN32) || defined(_WIN64)
 #undef _EPOLL
 
@@ -24,6 +22,7 @@
 // winsock 2 的头文件和库
 #include<winsock2.h>
 #include<MSWSock.h>
+#include"IocpExFuncs.h"
 #endif
 
 
@@ -37,7 +36,10 @@
 #include"CmiThreadLock.h"
 #include"CmiWaitSem.h"
 #include<string>
-//#include <iostream>
+#include<map>
+#include <iostream>
+using namespace std;
+
 //#include "spdlog/spdlog.h"
 
  //namespace spd = spdlog;
@@ -52,7 +54,7 @@
 
 #define MAX_PATH          260
 // 缓冲区长度 (1024*4)
-#define MAX_BUFFER_LEN        4096
+#define MAX_BUFFER_LEN        2048
 #define MIDDLE_BUFFER_LEN     1024
 // 默认端口
 #define DEFAULT_PORT          8888
@@ -74,8 +76,8 @@
 
 // 释放Socket宏
 #ifdef _IOCP
-//#define RELEASE_SOCKET(x)               {if(x !=INVALID_SOCKET) { lpfnDisConnectEx(x,NULL,0,0);x=INVALID_SOCKET;}}
-#define RELEASE_SOCKET(x)               {if(x !=INVALID_SOCKET) { closesocket(x);x=INVALID_SOCKET;}}
+#define RELEASE_SOCKET(x)               {if(x !=INVALID_SOCKET) { lpfnDisConnectEx(x,NULL,TF_REUSE_SOCKET,0);x=INVALID_SOCKET;}}
+//#define RELEASE_SOCKET(x)               {if(x !=INVALID_SOCKET) { closesocket(x);x=INVALID_SOCKET;}}
 #endif
 
 #ifdef _EPOLL
@@ -98,10 +100,20 @@ typedef CmiVector<SocketContext*> SocketCtxList;
 typedef CmiVector<RemoteServerInfo*> RemoteServerInfoList;
 
 typedef void(*DataReleaseFunc)(void *data);
-typedef void (*CreateSendPack)(IoContext* ioCtx);
+typedef IoContext* (*CreateSendPack)(SocketContext* socketCtx);
 
 
 typedef struct _WSABUF PackBuf;
+
+enum Event
+{
+	EV_SOCKET_OFFLINE,
+	EV_SOCKET_CONNECTED,
+	EV_SOCKET_ACCEPTED,
+	EV_PACK_SEND,
+	EV_PACK_RECV
+};
+
 
 // 投递的I/O类型
 enum PostIoType
@@ -123,12 +135,6 @@ enum SocketType
 	CONNECTED_SERVER_SOCKET        //本机与远程远程服务器之间已连接的SOCKET
 };
 
-enum SocketVerifType
-{
-	NO_VERIF,
-	ALREADY_VERIF
-};
-
 
 // 工作者线程的线程参数
 typedef struct _tagThreadParams_WORKER
@@ -142,7 +148,7 @@ struct TaskData
 {
 	ServerContext* serverCtx;
 	SocketContext* socketCtx;
-	IoContext* ioCtx;
+	SOCKET sock;
 	void* dataPtr;
 };
 

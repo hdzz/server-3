@@ -75,6 +75,7 @@ void* ServerContext::_WorkerThread(void* pParam)
 	}
 
 	//LOG4CPLUS_TRACE(log.GetInst(), "工作者线程" <<nThreadNo<< "号退出.");
+	delete extractPack;
 
 	// 释放线程参数
 	RELEASE(pParam);

@@ -19,6 +19,7 @@ bool ServerContext::LoadSocketLib()
 		return false;          // 返回值为零的时候是表示成功申请WSAStartup
 	}
 
+	LoadIocpExFuncs();
 #endif
 
 	return true;
@@ -40,9 +41,6 @@ ServerContext::ServerContext(TaskProcesser* _taskProcesser)
 #ifdef _IOCP
 ,iocp(NULL)
 ,localListenPort(DEFAULT_PORT)
-,lpfnAcceptEx(NULL)
-,lpfnGetAcceptExSockAddrs(NULL)
-,lpfnConnectEx(NULL)
 ,exitWorkThreads(0)
 #endif
 {
@@ -149,7 +147,7 @@ void ServerContext::Stop()
 	if (isStop)
 		return;
 
-	void *status;
+
 
 #ifdef _IOCP
 
@@ -162,6 +160,7 @@ void ServerContext::Stop()
 #endif
 
 #ifdef _EPOLL
+	void *status;
 
 	  __sync_add_and_fetch(&exitWorkThreads,1);
 
@@ -176,9 +175,6 @@ void ServerContext::Stop()
 
 	taskProcesser->Stop();
 
-	_ClearVecList(clientCtxList);
-	_ClearVecList(remoteServerInfoList);
-
 	// 释放其他资源
 	_DeInitializeByStop();
 
@@ -189,10 +185,6 @@ void ServerContext::Stop()
 //	释放掉与stop相关的资源
 void ServerContext::_DeInitializeByStop()
 {
-	// 清除相关列表信息
-	_ClearVecList(clientCtxList);
-	_ClearVecList(remoteServerInfoList);
-
 
 #ifdef _IOCP
 	// 关闭IOCP句柄
@@ -210,26 +202,9 @@ void ServerContext::_DeInitializeByStop()
 //释放掉close时的资源
 void ServerContext::_DeInitializeByClose()
 {
-	// 清除相关列表信息
-	_ClearVecList(socketctxFreeList);
-
 	if(useDefTaskProcesser)
 		RELEASE(taskProcesser);
 }
-
-template <class T>
-void ServerContext::_ClearVecList(CmiVector<T>& vecList, bool isDel)
-{
-	vecList.reset();
-	while (vecList.next()){
-		if (isDel){
-			delete *(vecList.cur());
-		}
-		vecList.del();
-	}
-}
-
-
 
 // 监听监听中的服务器，或客户端
 bool ServerContext::_ListenRemoteChildren()
@@ -309,7 +284,7 @@ bool ServerContext::_ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 {
 	// 生成用于连接服务器的Socket的信息
 	uint64_t timeStamp = GetTickCount64();
-	SocketContext* connectSocketCtx = remoteServerInfo->socketCtx = CreateConnectSocketCtx(timeStamp);
+	SocketContext* connectSocketCtx = remoteServerInfo->socketCtx = new SocketContext(this);
 	connectSocketCtx->sock = _Socket();
 	connectSocketCtx->remoteServerInfo = remoteServerInfo;
 
@@ -377,58 +352,30 @@ bool ServerContext::_ConnectRemoteServer(RemoteServerInfo* remoteServerInfo)
 	return true;
 }
 
-
-// 获取一个新的SocketContext
-SocketContext* ServerContext::_GetNewSocketContext(uint64_t timeStamp)
+bool ServerContext::SendPack(IoContext* ioCtx)
 {
-	SocketContext* p = 0;
-	uint64_t tm = 0;
+#ifdef _IOCP
+	_PostTask(_PostSendTask, ioCtx);
+#endif
 
-	if (!socketctxFreeList.isempty())
+#ifdef _EPOLL
+	if (false == _PostSend(ioCtx))
 	{
-		socketctxFreeList.reset();
-		while (socketctxFreeList.next())
-		{
-			p = *(socketctxFreeList.cur());
-			tm = timeStamp - p->timeStamp;
-
-			if (tm <= 1000)
-			{
-				p = new SocketContext(this);
-				return p;
-			}
-			else if (p->holdCount == 0)
-			{
-				socketctxFreeList.delete_node(p->node);
-				p->node = 0;
-				p->isRelease = false;
-				return p;
-			}
-		}
+		ReleaseIoContext(ioCtx);
+		PostSocketAbnormal(ioCtx->socketCtx);
+		return false;
 	}
-	else
-	{
-		p = new SocketContext(this);
-	}
-
-	return p;
+#endif
+	return true;
 }
-
-//把socketCtx添加到空闲表中
-void ServerContext::_AddToFreeList(SocketContext *socketCtx)
-{
-	if (socketCtx)
-	{
-		socketCtx->UpdataTimeStamp();
-		socketctxFreeList.push_back(socketCtx);
-		socketCtx->SetNode(socketctxFreeList.get_last_node());
-	}
-}
-
 
 bool ServerContext::PostSocketAbnormal(SocketContext* socketCtx)
 {
-	_PostTaskData(_PostErrorTask, 0, socketCtx);
+	TaskData* data = (TaskData*)malloc(sizeof(TaskData));
+	data->serverCtx = this;
+	data->sock = socketCtx->sock;
+
+	_PostTaskData(_PostErrorTask, _ReleaseTask, data, 1000);
 	return true;
 }
 
@@ -480,8 +427,19 @@ void ServerContext::setTaskProcesser(TaskProcesser* _taskProcesser)
 SOCKET ServerContext:: _Socket()
 {
 #ifdef _IOCP
+	SOCKET sock;
 	// 需要使用重叠IO，必须得使用WSASocket来建立Socket，才可以支持重叠IO操作
-	return WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+	// 为以后新连入的客户端先准备好Socket
+	if (!reusedSocketList.isempty()){
+
+		sock = *reusedSocketList.begin();
+		reusedSocketList.delete_node(reusedSocketList.get_first_node());
+	}
+	else{
+		sock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
+	}
+
+	return sock;
 #endif
 
 #ifdef _EPOLL
@@ -507,71 +465,42 @@ int ServerContext::_GetLastError()
 #endif
 }
 
-// 将客户端的相关信息存储到数组中
-void ServerContext::_AddToClientCtxList(SocketContext *socketCtx)
-{
-	clientCtxList.push_back(socketCtx);
-	socketCtx->SetNode(clientCtxList.get_last_node());
-}
 
-void ServerContext::_AddToRemoteServerInfoList(RemoteServerInfo* remoteServerInfo)
+void ServerContext::_CreateCheckRemoteServerTimer(SocketContext* socketCtx)
 {
-	remoteServerInfoList.push_back(remoteServerInfo);
-	remoteServerInfo->node = remoteServerInfoList.get_last_node();
-	remoteServerInfo->socketCtx->node = remoteServerInfo->node;
+	RemoteServerInfo* remoteServerInfo = socketCtx->remoteServerInfo;
 
 	if (isCheckServerHeartBeat && remoteServerInfo->isCheckHeartBeat)
 	{
-		PostTimerTask(_HeartBeatTask_CheckServer, 0, remoteServerInfo, remoteServerInfo->lifeDelayTime - 100);
+		TaskData* data = (TaskData*)malloc(sizeof(TaskData));
+		data->serverCtx = this;
+		data->sock = socketCtx->sock;
+
+		PostTimerTask(_HeartBeatTask_CheckServer, _ReleaseTask, data, remoteServerInfo->lifeDelayTime - 100);
 	}
 
 	if (isSendServerHeartBeat && remoteServerInfo->sendHeartBeatPackTime)
 	{
-		PostTimerTask(_SendHeartBeatTask, 0, remoteServerInfo, remoteServerInfo->sendHeartBeatPackTime);
+		TaskData* data = (TaskData*)malloc(sizeof(TaskData));
+		data->serverCtx = this;
+		data->sock = socketCtx->sock;
+
+		PostTimerTask(_SendHeartBeatTask, _ReleaseTask, data, remoteServerInfo->sendHeartBeatPackTime);
 	}
 }
 
 
 //移除某个特定的Context
-bool ServerContext::_RemoveSocketContext(SocketContext *socketCtx)
+void ServerContext::_RemoveSocketContext(SocketContext *socketCtx)
 {
-	if (socketCtx->sock == INVALID_SOCKET)
-		return true;
-
-	RemoteServerInfo* remoteServerInfo;
+#ifdef _IOCP
 	SOCKET sock = socketCtx->sock;
-	socketCtx->sock = INVALID_SOCKET;
-	RELEASE_SOCKET(sock);
+	reusedSocketList.push_back(sock);
+#endif
 
-	switch (socketCtx->socketType)
-	{
-	case LISTEN_CLIENT_SOCKET:
-		clientCtxList.delete_node(socketCtx->node);
-		_AddToFreeList(socketCtx);
-		return true;
-
-	case CONNECTED_SERVER_SOCKET:
-		remoteServerInfo = *(remoteServerInfoList.node(socketCtx->node));
-		remoteServerInfo->socketCtx = 0;
-		remoteServerInfoList.delete_node(socketCtx->node);
-		_AddToFreeList(socketCtx);
-
-		if ((isCheckServerHeartBeat && remoteServerInfo->isCheckHeartBeat) ||
-			(isSendServerHeartBeat && remoteServerInfo->sendHeartBeatPackTime))
-		{
-			return true;
-		}
-
-		delete remoteServerInfo;
-		return true;
-
-	default:
-		_AddToFreeList(socketCtx);
-		return true;
-	}
-
-	return false;
+	delete socketCtx;
 }
+
 
 void ServerContext::_HeartBeat_CheckChildren()
 {
@@ -579,21 +508,20 @@ void ServerContext::_HeartBeat_CheckChildren()
 	uint64_t time = GetTickCount64();
 	uint64_t tm;
 
-	//客户端列表
-	clientCtxList.reset();
-	while (clientCtxList.next())
+	map<SOCKET, SocketContext*>::iterator it, next;
+	for (it = sockmap.begin(); it != sockmap.end();)
 	{
-		socketCtx = *(clientCtxList.cur());
+		socketCtx = it->second;
 		tm = time - socketCtx->timeStamp;
 
-		//LOG4CPLUS_INFO(log.GetInst(), "SocketCtx:" << "[" << socketCtx << "]" << "时间戳:" << socketCtx->timeStamp << "ms");
-		//LOG4CPLUS_INFO(log.GetInst(), "time" << "时间戳:" << time << "ms");
-		//LOG4CPLUS_INFO(log.GetInst(), "socket包距更新时间:" << tm << "ms");
-
-		if (tm > childLifeDelayTime)
+		//客户端列表
+		if (socketCtx->socketType == LISTEN_CLIENT_SOCKET)
 		{
-			//LOG4CPLUS_INFO(log.GetInst(), "客户端socketCtx超时无响应!");
-			SendSocketAbnormal(socketCtx);
+			if (tm > childLifeDelayTime)
+			{
+				//LOG4CPLUS_INFO(log.GetInst(), "客户端socketCtx超时无响应!");
+				SendSocketAbnormal(socketCtx);
+			}
 		}
 	}
 }
@@ -609,10 +537,6 @@ void ServerContext::_HeartBeat_CheckServer(RemoteServerInfo* remoteServerInfo)
 	socketCtx = remoteServerInfo->socketCtx;
 	tm = time - socketCtx->timeStamp;
 
-	//LOG4CPLUS_INFO(log.GetInst(), "SocketCtx:" << "[" << socketCtx << "]" << "时间戳:" << socketCtx->timeStamp << "ms");
-	//LOG4CPLUS_INFO(log.GetInst(), "time" << "时间戳:" << time << "ms");
-	//LOG4CPLUS_INFO(log.GetInst(), "socket包距更新时间:" << tm << "ms");
-
 	if (tm > remoteServerInfo->lifeDelayTime)
 	{
 		//LOG4CPLUS_INFO(log.GetInst(), "客户端socketCtx超时无响应!");
@@ -621,30 +545,6 @@ void ServerContext::_HeartBeat_CheckServer(RemoteServerInfo* remoteServerInfo)
 }
 
 
-void ServerContext::_ConnectedPack(SocketContext* socketCtx)
-{
-	char buf[10];
-	PackBuf wsabuf = { 10, buf };
-	CreatePack_Connected(&wsabuf);
-	UnPack(socketCtx, (uint8_t*)buf);
-}
-
-void ServerContext::_SendedPack(SocketContext* socketCtx)
-{
-	char buf[10];
-	PackBuf wsabuf = { 10, buf };
-	CreatePack_Sended(&wsabuf);
-	UnPack(socketCtx, (uint8_t*)buf);
-}
-
-
-void ServerContext::_AcceptedClientPack(SocketContext* socketCtx)
-{
-	char buf[10];
-	PackBuf wsabuf = { 10, buf };
-	CreatePack_Accepted(&wsabuf);
-	UnPack(socketCtx, (uint8_t*)buf);
-}
 
 bool ServerContext::_PostTask(task_func_cb taskfunc, RemoteServerInfo* remoteServerInfo)
 {
@@ -686,7 +586,7 @@ bool ServerContext::_AssociateSocketCtx(SocketContext *socketCtx)
 #endif
 
 #ifdef _EPOLL
-
+	// 将用于和客户端通信的SOCKET绑定到Epoll中
     int ret = epoll->BindSocket(socketCtx->sock,  socketCtx);
 
     if(ret != 0)
@@ -757,29 +657,38 @@ void ServerContext::_DoAccept(IoContext* ioCtx)
 
 
 	// 参数设置完毕，将这个Socket和完成端口绑定(这也是一个关键步骤)
-	if (false == _AssociateSocketCtx(newSocketCtx))
+	if (_AssociateSocketCtx(newSocketCtx))
+	{
+		UnPack(EV_SOCKET_ACCEPTED, newSocketCtx, 0);
+
+		newIoCtx = CreateIoContext();
+		newIoCtx->sock = newSocketCtx->sock;
+		newIoCtx->socketCtx = newSocketCtx;
+		newIoCtx->serverCtx = this;
+
+		_PostTask(_DoAcceptTask, newIoCtx);
+	}
+	else
 	{
 		PostSocketAbnormal(newSocketCtx);
 		//LOG4CPLUS_ERROR(log.GetInst(), "绑定操作任务失败.重新投递Accept");
-		goto end;
+		return;
 	}
 
-	_AcceptedClientPack(newSocketCtx);
+#ifdef _IOCP
+	 _PostTask(_PostAcceptTask, ioCtx);
+#endif
 
-	newIoCtx = CreateIoContext();
-	newIoCtx->sock = newSocketCtx->sock;
-	newIoCtx->socketCtx = newSocketCtx;
-	newIoCtx->serverCtx = this;
-
-	_PostTask(_DoAcceptTask, newIoCtx);
-
-end:
+#ifdef _EPOLL
 	// 投递新的AcceptEx
 	if (false == _PostAccept(ioCtx))
 	{
 		ReleaseIoContext(ioCtx);
 		PostSocketAbnormal(socketCtx);
 	}
+#endif
+
+
 }
 
 //在有接收的数据到达的时候，进行处理
@@ -809,7 +718,13 @@ void ServerContext::_DoRecv(IoContext* ioCtx)
 //已经发送完数据后调用处理
 void ServerContext::_DoSend(IoContext* ioCtx)
 {
+#ifdef _IOCP
+	_PostTask(_DoSendTask, ioCtx);
+#endif 
+
+#ifdef _EPOLL
 	SocketContext* socketCtx = ioCtx->socketCtx;
+	UnPack(EV_PACK_SEND, socketCtx, (uint8_t*)ioCtx->buf);
 	ReleaseIoContext(ioCtx);
-	//_SendedPack(socketCtx);
+#endif
 }

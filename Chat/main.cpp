@@ -1,17 +1,21 @@
-#include"loadlib.h"
+
 #include"ChatClient.h"
+
+#pragma comment(lib,"ws2_32.lib")
 
 int main()
 {
 	ChatClient::LoadSocketLib();
-	ChatClient* chatClient[1000];
-	int port = 6668;
+	ChatClient* chatClient[13];
 
-	for (int i = 0; i < 100; i++)
+
+	
+	for (int i = 0; i < 10; i++)
 	{
-		chatClient[i] = new ChatClient(i, port++);
+		chatClient[i] = new ChatClient(i);
 		chatClient[i]->Start();
 	}
+
 
 	/*
 	

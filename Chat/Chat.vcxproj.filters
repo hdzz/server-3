@@ -99,6 +99,9 @@
     <ClInclude Include="..\server\src\EpollToIocp\ThreadData.h">
       <Filter>server\src\EpollToIocp</Filter>
     </ClInclude>
+    <ClInclude Include="..\server\util\IocpExFuncs.h">
+      <Filter>server\util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\server\src\Epoll.cpp">
@@ -160,6 +163,9 @@
     </ClCompile>
     <ClCompile Include="..\server\src\EpollToIocp\ThreadData.cpp">
       <Filter>server\src\EpollToIocp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\server\util\IocpExFuncs.cpp">
+      <Filter>server\util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -55,12 +55,14 @@ public:
 
 	T* next()
 	{
+		if (sz == 0) { return 0; }
 		curt = curt ? curt->next : first;
 		return curt ? &(curt->data) : 0;
 	}
 
 	T* up()
 	{
+		if (sz == 0) { return 0; }
 		curt = curt ? curt->up : last;
 		return curt ? &(curt->data) : 0;
 	}
@@ -100,13 +102,17 @@ public:
 
 	void* get_next_node(void* node)
 	{
-		return (void*)(((Node*)node)->next);
+		Node* nd = (Node*)(((Node*)node)->next);
+		if (nd){ return nd->data ? nd : 0; }
+		return 0;
 	}
 	
 
 	void* get_up_node(void* node)
 	{
-		return (void*)(((Node*)node)->up);
+		Node* nd = (Node*)(((Node*)node)->upt);
+		if (nd){ return nd->data ? nd : 0; }
+		return 0;
 	}
 
 	void goto_node(void* node)
@@ -126,6 +132,10 @@ public:
 			last = last->next;
 			last->data = data;
 			sz++;
+
+			if (last->next)
+				((Node*)(last->next))->data = 0;
+
 			return &(last->data);
 		}
 		else if (first && !last)
@@ -133,6 +143,10 @@ public:
 			first->data = data;
 			last = first;
 			sz++;		
+
+			if (last->next)
+				((Node*)(last->next))->data = 0;
+
 			return  &(last->data);
 		}
 
@@ -151,6 +165,9 @@ public:
 		{
 			first = last = node;
 		}
+
+		if (last->next)
+			((Node*)(last->next))->data = 0;
 
 		return &(last->data);
 	}

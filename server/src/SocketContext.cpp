@@ -6,15 +6,10 @@
 SocketContext::SocketContext(ServerContext* _serverCtx)
 :sock(INVALID_SOCKET)
 , socketType(PENDDING_SOCKET)
-, verifType(NO_VERIF)
 , timeStamp(0)
-, node(0)
 , remoteServerInfo(0)
-, extensionData(0)
-, extDataRelease(0)
 , serverCtx(_serverCtx)
 , holdCount(0)
-, isRelease(false)
 {
 	unPackCache.buf = 0;
 	unPackCache.len = 0;
@@ -25,15 +20,12 @@ SocketContext::SocketContext(ServerContext* _serverCtx)
 // 释放资源
 SocketContext:: ~SocketContext()
 {
+	delete remoteServerInfo;
+
 	if (sock != INVALID_SOCKET){
 		RELEASE_SOCKET(sock);
 		sock = INVALID_SOCKET;
 	}
-
-	node = 0;
-
-	if (extDataRelease)
-		extDataRelease(extensionData);
 }
 
 
